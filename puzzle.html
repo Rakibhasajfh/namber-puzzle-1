@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Puzzle Game</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #puzzle { display: grid; gap: 5px; margin: 20px auto; }
+        .tile {
+            width: 60px; height: 60px; font-size: 24px; 
+            display: flex; align-items: center; justify-content: center;
+            background: #eee; border: 1px solid #ccc; cursor: pointer;
+            user-select: none;
+        }
+        .empty { background: #fff; border: 1px dashed #ccc; cursor: default; }
+        #info { margin: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Sliding Puzzle</h1>
+    <div id="info">
+        <span id="moves">Moves: 0</span> | 
+        <span id="timer">Time: 0s</span>
+    </div>
+    <div id="puzzle"></div>
+    <script>
+        const size = 4;
+        let tiles = [];
+        let moves = 0;
+        let seconds = 0;
+        let timerInterval = null;
+
+        // Sounds (replace with your own audio files if needed)
+        const clickSound = new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_115b9e4bfa.mp3');
+        const winSound = new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_115b9e4bfa.mp3');
+
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function isSolvable(arr) {
+            let invCount = 0;
+            for (let i = 0; i < arr.length - 1; i++) {
+                for (let j = i + 1; j < arr.length; j++) {
+                    if (arr[i] && arr[j] && arr[i] > arr[j]) invCount++;
+                }
+            }
+            const emptyRow = Math.floor(arr.indexOf("") / size);
+            if (size % 2 === 1) return invCount % 2 === 0;
+            return (invCount + size - emptyRow) % 2 === 0;
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            seconds = 0;
+            document.getElementById("timer").innerText = `Time: ${seconds}s`;
+            timerInterval = setInterval(() => {
+                seconds++;
+                document.getElementById("timer").innerText = `Time: ${seconds}s`;
+            }, 1000);
+        }
+
+        function createPuzzle() {
+            const puzzle = document.getElementById("puzzle");
+            puzzle.style.gridTemplateColumns = `repeat(${size}, 60px)`;
+            puzzle.innerHTML = "";
+            tiles.forEach((val, idx) => {
+                const tile = document.createElement("div");
+                tile.className = "tile" + (val === "" ? " empty" : "");
+                tile.innerText = val;
+                if (val !== "") {
+                    tile.onclick = () => moveTile(idx);
+                }
+                puzzle.appendChild(tile);
+            });
+            document.getElementById("moves").innerText = `Moves: ${moves}`;
+        }
+
+        function moveTile(index) {
+            const emptyIndex = tiles.indexOf("");
+            const validMoves = [emptyIndex - 1, emptyIndex + 1, emptyIndex - size, emptyIndex + size];
+
+            if (validMoves.includes(index) && isValidMove(index, emptyIndex)) {
+                [tiles[index], tiles[emptyIndex]] = [tiles[emptyIndex], tiles[index]];
+                moves++;
+                document.getElementById("moves").innerText = `Moves: ${moves}`;
+                clickSound.play();
+                createPuzzle();
+                checkWin();
+            }
+        }
+
+        function isValidMove(index, emptyIndex) {
+            const row1 = Math.floor(index / size);
+            const col1 = index % size;
+            const row2 = Math.floor(emptyIndex / size);
+            const col2 = emptyIndex % size;
+            return Math.abs(row1 - row2) + Math.abs(col1 - col2) === 1;
+        }
+
+        function checkWin() {
+            const correctTiles = [...Array(size * size - 1).keys()].map(n => (n + 1).toString());
+            const currentTiles = tiles.slice(0, size * size - 1).map(val => val.toString());
+
+            if (JSON.stringify(correctTiles) === JSON.stringify(currentTiles)) {
+                clearInterval(timerInterval);
+                winSound.play();
+                setTimeout(() => {
+                    alert(`🎉 You Win! Moves: ${moves}, Time: ${seconds}s`);
+                    saveBest();
+                }, 100);
+            }
+        }
+
+        function saveBest() {
+            const best = JSON.parse(localStorage.getItem("bestScore") || "{}");
+            if (!best.moves || moves < best.moves || (moves === best.moves && seconds < best.seconds)) {
+                localStorage.setItem("bestScore", JSON.stringify({ moves, seconds }));
+                alert("New Best Score!");
+            }
+        }
+
+        function init() {
+            let arr;
+            do {
+                arr = shuffle([...Array(size * size - 1).keys()].map(n => (n + 1).toString()).concat(""));
+            } while (!isSolvable(arr));
+            tiles = arr;
+            moves = 0;
+            createPuzzle();
+            startTimer();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html></div>
